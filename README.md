@@ -68,34 +68,6 @@ python main.py
 
 ---
 
-## ❓ Sorun Giderme (Sıkça Karşılaşılan Hatalar)
-
-Eğer projeyi çalıştırırken hata alıyorsanız, lütfen aşağıdaki adımları kontrol edin:
-
-### 1. "ModuleNotFoundError: No module named 'cv2'" Hatası
-Bu hata OpenCV'nin yüklü olmadığını gösterir. Terminale şu komutu yazarak kütüphaneleri yeniden kurun:
-```bash
-pip install numpy opencv-python matplotlib pillow
-```
-*Not: Eğer bilgisayarınızda birden fazla Python sürümü varsa, kütüphaneyi doğru sürüme kurduğunuzdan emin olun (örn: `python -m pip install ...` veya `py -m pip install ...`).*
-
-### 2. "Goruntu dosyasi bulunamadi: 'images/test.jpg'" Hatası
-Arayüzü veya `main.py`'yi ilk kez çalıştırmadan önce mutlaka bir test görüntüsü oluşturmanız gerekir. Şu komutu çalıştırın:
-```bash
-python test_goruntu_olustur.py
-
-## 🛠 Geliştiriciler İçin Önemli Notlar
-
-### 1. Kendi Modülünüzü Arayüze Ekleme
-Herkesin kendine ait bir sekmesi (Tab) `arayuz.py` içerisinde hazır durumdadır. Kendi fonksiyonlarınızı entegre etmek için:
-1. `arayuz.py` dosyasının en üstünde kendi dosyanızı `import` edin.
-2. `KisiXSekmesi` sınıfı içindeki placeholder (yer tutucu) kısmını kaldırıp kendi buton ve slider'larınızı ekleyin.
-3. **Önemli:** Ağır işlemlerin arayüzü dondurmaması için Kişi 5'in yazdığı **Threading** (arka plan iş parçacığı) yapısını örnek alın.
-
-### 2. Türkçe Karakter ve Dosya Yolu Sorunu
-Görüntü yüklerken dosya yollarında Türkçe karakter (`ü, İ, ş, ğ` vb.) olması durumunda OpenCV hata verebilir. Bu projede bu sorun `np.fromfile` ve `cv2.imdecode` kullanılarak aşılmıştır. Lütfen kendi dosya işlemlerinizde `arayuz.py` içindeki `_goruntu_yukle` metodunu referans alın.
-
-
 ## Branch Kuralları
 
 - Her kişi kendi branch'inde çalışır: `kisi1/temel`, `kisi2/geometrik` vb.
