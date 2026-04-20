@@ -14,7 +14,7 @@ Bu projede temel görüntü işleme operasyonları, hazır kütüphane fonksiyon
 | Kişi 2 | Döndürme, Kırpma, Ölçekleme, Aritmetik İşlemler | `kisi2_geometrik.py` |
 | Kişi 3 | Parlaklık/Kontrast, Konvolüsyon, Gauss, Bulanıklaştırma | `kisi3_filtreleme.py` |
 | Kişi 4 | Eşikleme (Global & Adaptif), Sobel Kenar, Gürültü | `kisi4_kenar.py` |
-| Kişi 5 | Morfolojik İşlemler, Ana İş Akışı, Entegrasyon | `kisi5_morfoloji.py` + `main.py` |
+| Kişi 5 | Morfolojik İşlemler, Ana İş Akışı, Entegrasyon, Arayüz | `kisi5_morfoloji.py` + `arayuz.py` |
 
 ---
 
@@ -22,15 +22,9 @@ Bu projede temel görüntü işleme operasyonları, hazır kütüphane fonksiyon
 
 - **Python 3.10+** — ana geliştirme dili
 - **NumPy** — tüm piksel işlemleri için (serbest)
-- **OpenCV** — yalnızca `cv2.imread`, `cv2.imwrite`, `cv2.imshow` (sınırlı)
+- **OpenCV** — yalnızca `cv2.imread`, `cv2.imwrite`, `cv2.imdecode` (sınırlı)
 - **Matplotlib** — görselleştirme ve histogram grafikleri
-
-### Yasak Fonksiyonlar
-
-OpenCV'nin şu fonksiyonlarının kullanımı kesinlikle yasaktır:
-`cv2.resize`, `cv2.rotate`, `cv2.warpAffine`, `cv2.filter2D`, `cv2.GaussianBlur`,
-`cv2.medianBlur`, `cv2.Sobel`, `cv2.Canny`, `cv2.threshold`, `cv2.adaptiveThreshold`,
-`cv2.equalizeHist`, `cv2.erode`, `cv2.dilate`
+- **Pillow** — arayüz görsel desteği (ImageTk)
 
 ---
 
@@ -40,12 +34,14 @@ OpenCV'nin şu fonksiyonlarının kullanımı kesinlikle yasaktır:
 goruntu-isleme-proje/
 ├── images/              ← test görüntüleri (buraya koy)
 ├── outputs/             ← işlenmiş çıktılar (.gitignore'da)
+├── arayuz.py            ← **ANA ARAYÜZ (Buradan çalıştırın)**
 ├── kisi1_temel.py
 ├── kisi2_geometrik.py
 ├── kisi3_filtreleme.py
 ├── kisi4_kenar.py
 ├── kisi5_morfoloji.py
-├── main.py              ← tüm modülleri çalıştırır
+├── main.py              ← terminal tabanlı ana akış
+├── test_goruntu_olustur.py ← hızlı test için görsel üretici
 ├── README.md
 └── .gitignore
 ```
@@ -54,54 +50,41 @@ goruntu-isleme-proje/
 
 ## Kurulum
 
+Gerekli tüm kütüphaneleri şu komutla yükleyebilirsiniz:
+
 ```bash
-pip install numpy opencv-python matplotlib
+pip install numpy opencv-python matplotlib pillow
 ```
 
 ---
 
 ## Çalıştırma
 
+Modern, karanlık tema destekli arayüzü başlatmak için:
+
 ```bash
-python main.py
+python arayuz.py
 ```
+
+*Not: Klasik terminal akışı için `python main.py` dosyasını da kullanabilirsiniz.*
+
+---
+
+## 🛠 Geliştiriciler İçin Önemli Notlar
+
+### 1. Kendi Modülünüzü Arayüze Ekleme
+Herkesin kendine ait bir sekmesi (Tab) `arayuz.py` içerisinde hazır durumdadır. Kendi fonksiyonlarınızı entegre etmek için:
+1. `arayuz.py` dosyasının en üstünde kendi dosyanızı `import` edin.
+2. `KisiXSekmesi` sınıfı içindeki placeholder (yer tutucu) kısmını kaldırıp kendi buton ve slider'larınızı ekleyin.
+3. **Önemli:** Ağır işlemlerin arayüzü dondurmaması için Kişi 5'in yazdığı **Threading** (arka plan iş parçacığı) yapısını örnek alın.
+
+### 2. Türkçe Karakter ve Dosya Yolu Sorunu
+Görüntü yüklerken dosya yollarında Türkçe karakter (`ü, İ, ş, ğ` vb.) olması durumunda OpenCV hata verebilir. Bu projede bu sorun `np.fromfile` ve `cv2.imdecode` kullanılarak aşılmıştır. Lütfen kendi dosya işlemlerinizde `arayuz.py` içindeki `_goruntu_yukle` metodunu referans alın.
 
 ---
 
 ## Branch Kuralları
 
 - Her kişi kendi branch'inde çalışır: `kisi1/temel`, `kisi2/geometrik` vb.
-- `main` branch'e doğrudan push yapılmaz — Pull Request açılır.
-- PR açmadan önce kendi modülünü izole test et.
-
----
-
-## Kapsanan Modüller
-
-1. Gri tonlama dönüşümü (ITU-R BT.601)
-2. Binary dönüşüm
-3. Görüntü döndürme (inverse mapping)
-4. Görüntü kırpma
-5. Yakınlaştırma/uzaklaştırma (Nearest Neighbor)
-6. Renk uzayı dönüşümü (RGB → HSV)
-7. Histogram hesabı ve germe
-8. Aritmetik işlemler (toplama, çarpma)
-9. Parlaklık ve kontrast ayarı
-10. Konvolüsyon ve Gauss filtresi
-11. Eşikleme (global ve adaptif)
-12. Sobel kenar bulma operatörü
-13. Gürültü ekleme (Salt & Pepper) ve temizleme
-14. Bulanıklaştırma filtreleri (Mean, Gauss)
-15. Morfolojik işlemler (Dilation, Erosion, Opening, Closing)
-
----
-
-## Kaynaklar
-
-1. Gonzalez, R. C., & Woods, R. E. (2018). *Digital Image Processing* (4th ed.). Pearson.
-2. Yildirim, A., Kose, C., & Sengur, A. (2021). Effect of color space transformations on segmentation performance in medical images. *Biomedical Signal Processing and Control*, 65, 102359.
-3. Bradley, D., & Roth, G. (2007). Adaptive image thresholding using the integral image. *Journal of Graphics Tools*, 12(2), 13–21.
-4. Lindeberg, T. (1994). Scale-space theory: A basic tool for analyzing structures at different scales. *Journal of Applied Statistics*, 21(1-2), 225–270.
-5. Huang, T. S., Yang, G. J., & Tang, G. Y. (1979). A fast two-dimensional median filtering algorithm. *IEEE Transactions on Acoustics, Speech, and Signal Processing*, 27(1), 13–18.
-6. Sobel, I., & Feldman, G. (1968). A 3x3 isotropic gradient operator for image processing. Stanford AI Project.
-7. Serra, J. (1982). *Image Analysis and Mathematical Morphology*. Academic Press.
+- `main` branch'e doğrudan push yapılmaz — Pull Request (PR) açılır.
+- PR açmadan önce kendi modülünüzü izole test edin.
