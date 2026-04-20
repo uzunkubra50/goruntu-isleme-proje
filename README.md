@@ -83,6 +83,28 @@ Görüntü yüklerken dosya yollarında Türkçe karakter (`ü, İ, ş, ğ` vb.)
 
 ---
 
+## ❓ Sorun Giderme (Sıkça Karşılaşılan Hatalar)
+
+Eğer projeyi çalıştırırken hata alıyorsanız, lütfen aşağıdaki adımları kontrol edin:
+
+### 1. "ModuleNotFoundError: No module named 'cv2'" Hatası
+Bu hata OpenCV'nin yüklü olmadığını gösterir. Terminale şu komutu yazarak kütüphaneleri yeniden kurun:
+```bash
+pip install numpy opencv-python matplotlib pillow
+```
+*Not: Eğer bilgisayarınızda birden fazla Python sürümü varsa, kütüphaneyi doğru sürüme kurduğunuzdan emin olun (örn: `python -m pip install ...` veya `py -m pip install ...`).*
+
+### 2. "Goruntu dosyasi bulunamadi: 'images/test.jpg'" Hatası
+Arayüzü veya `main.py`'yi ilk kez çalıştırmadan önce mutlaka bir test görüntüsü oluşturmanız gerekir. Şu komutu çalıştırın:
+```bash
+python test_goruntu_olustur.py
+```
+
+### 3. Arayüz Açılıyor Ama Görüntü Yüklenmiyor
+Dosya yollarında Türkçe karakter kullanmaktan kaçınmaya çalışın. Her ne kadar arayüzde bunu desteklemek için `imdecode` kullansak da, en güvenli yol görselleri `images/` klasörü içinde toplamak ve oradan açmaktır.
+
+---
+
 ## Branch Kuralları
 
 - Her kişi kendi branch'inde çalışır: `kisi1/temel`, `kisi2/geometrik` vb.
