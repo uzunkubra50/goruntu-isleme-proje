@@ -68,6 +68,18 @@ python main.py
 
 ---
 
+## 🛠 Geliştiriciler İçin Önemli Notlar
+
+### 1. Kendi Modülünüzü Arayüze Ekleme
+Herkesin kendine ait bir sekmesi (Tab) `arayuz.py` içerisinde hazır durumdadır. Kendi fonksiyonlarınızı entegre etmek için:
+1. `arayuz.py` dosyasının en üstünde kendi dosyanızı `import` edin.
+2. `KisiXSekmesi` sınıfı içindeki placeholder (yer tutucu) kısmını kaldırıp kendi buton ve slider'larınızı ekleyin.
+3. **Önemli:** Ağır işlemlerin arayüzü dondurmaması için Kişi 5'in yazdığı **Threading** (arka plan iş parçacığı) yapısını örnek alın.
+
+### 2. Türkçe Karakter ve Dosya Yolu Sorunu
+Görüntü yüklerken dosya yollarında Türkçe karakter (`ü, İ, ş, ğ` vb.) olması durumunda OpenCV hata verebilir. Bu projede bu sorun `np.fromfile` ve `cv2.imdecode` kullanılarak aşılmıştır. Lütfen kendi dosya işlemlerinizde `arayuz.py` içindeki `_goruntu_yukle` metodunu referans alın.
+
+
 ## Branch Kuralları
 
 - Her kişi kendi branch'inde çalışır: `kisi1/temel`, `kisi2/geometrik` vb.
