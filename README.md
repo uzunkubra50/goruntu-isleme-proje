@@ -14,7 +14,7 @@ Bu projede temel görüntü işleme operasyonları, hazır kütüphane fonksiyon
 | Kişi 2 | Döndürme, Kırpma, Ölçekleme, Aritmetik İşlemler | `kisi2_geometrik.py` |
 | Kişi 3 | Parlaklık/Kontrast, Konvolüsyon, Gauss, Bulanıklaştırma | `kisi3_filtreleme.py` |
 | Kişi 4 | Eşikleme (Global & Adaptif), Sobel Kenar, Gürültü | `kisi4_kenar.py` |
-| Kişi 5 | Morfolojik İşlemler, Ana İş Akışı, Entegrasyon | `kisi5_morfoloji.py` + `main.py` |
+| Kişi 5 | Morfolojik İşlemler, Ana İş Akışı, Entegrasyon, Arayüz | `kisi5_morfoloji.py` + `arayuz.py` |
 
 ---
 
@@ -22,15 +22,9 @@ Bu projede temel görüntü işleme operasyonları, hazır kütüphane fonksiyon
 
 - **Python 3.10+** — ana geliştirme dili
 - **NumPy** — tüm piksel işlemleri için (serbest)
-- **OpenCV** — yalnızca `cv2.imread`, `cv2.imwrite`, `cv2.imshow` (sınırlı)
+- **OpenCV** — yalnızca `cv2.imread`, `cv2.imwrite`, `cv2.imdecode` (sınırlı)
 - **Matplotlib** — görselleştirme ve histogram grafikleri
-
-### Yasak Fonksiyonlar
-
-OpenCV'nin şu fonksiyonlarının kullanımı kesinlikle yasaktır:
-`cv2.resize`, `cv2.rotate`, `cv2.warpAffine`, `cv2.filter2D`, `cv2.GaussianBlur`,
-`cv2.medianBlur`, `cv2.Sobel`, `cv2.Canny`, `cv2.threshold`, `cv2.adaptiveThreshold`,
-`cv2.equalizeHist`, `cv2.erode`, `cv2.dilate`
+- **Pillow** — arayüz görsel desteği (ImageTk)
 
 ---
 
@@ -38,14 +32,16 @@ OpenCV'nin şu fonksiyonlarının kullanımı kesinlikle yasaktır:
 
 ```
 goruntu-isleme-proje/
-├── images/              ← test görüntüleri (buraya koy)
-├── outputs/             ← işlenmiş çıktılar (.gitignore'da)
+├── images/                  ← test görüntüleri (buraya koy)
+├── outputs/                 ← işlenmiş çıktılar (.gitignore'da)
+├── arayuz.py                ← ANA ARAYÜZ (Buradan çalıştırın)
 ├── kisi1_temel.py
 ├── kisi2_geometrik.py
 ├── kisi3_filtreleme.py
 ├── kisi4_kenar.py
 ├── kisi5_morfoloji.py
-├── main.py              ← tüm modülleri çalıştırır
+├── main.py                  ← terminal tabanlı ana akış
+├── test_goruntu_olustur.py  ← hızlı test için görsel üretici
 ├── README.md
 └── .gitignore
 ```
@@ -55,7 +51,7 @@ goruntu-isleme-proje/
 ## Kurulum
 
 ```bash
-pip install numpy opencv-python matplotlib
+pip install numpy opencv-python matplotlib pillow
 ```
 
 ---
@@ -63,7 +59,81 @@ pip install numpy opencv-python matplotlib
 ## Çalıştırma
 
 ```bash
-python main.py
+python arayuz.py
+```
+
+Terminal akışı için: `python main.py`
+
+---
+
+## Geliştiriciler İçin Önemli Notlar
+
+### Kendi Modülünüzü Arayüze Ekleme
+
+1. `arayuz.py` dosyasının en üstünde kendi dosyanızı `import` edin.
+2. `KisiXSekmesi` sınıfı içindeki placeholder kısmını kaldırıp kendi buton ve slider'larınızı ekleyin.
+3. Ağır işlemlerin arayüzü dondurmaması için Kişi 5'in yazdığı Threading yapısını örnek alın.
+
+### Türkçe Karakter ve Dosya Yolu Sorunu
+
+Dosya yolunda Türkçe karakter (`ü, İ, ş, ğ` vb.) varsa OpenCV hata verebilir. Bu proje `np.fromfile` + `cv2.imdecode` kullanarak bu sorunu çözmüştür. Kendi dosya işlemlerinizde `arayuz.py` içindeki `_goruntu_yukle` metodunu referans alın.
+
+---
+
+## Sıkça Karşılaşılan Hatalar ve Çözümleri
+
+### "ModuleNotFoundError: No module named 'cv2'"
+
+OpenCV yüklü değil. Terminale şunu yaz:
+
+```bash
+pip install numpy opencv-python matplotlib pillow
+```
+
+Birden fazla Python sürümü varsa:
+
+```bash
+python -m pip install numpy opencv-python matplotlib pillow
+```
+
+---
+
+### "Goruntu dosyasi bulunamadi: 'images/test.jpg'"
+
+Henüz test görseli oluşturulmamış. Şunu çalıştır:
+
+```bash
+python test_goruntu_olustur.py
+```
+
+Sonra tekrar `python arayuz.py` de.
+
+---
+
+### Arayüz açılıyor ama görüntü yüklenmiyor
+
+Dosya yolunda Türkçe karakter var mı kontrol et. Görseli `images/` klasörüne taşı ve oradan aç. Klasörün adında da Türkçe karakter olmamasına dikkat et.
+
+---
+
+### "pip" komutu tanınmıyor (Windows)
+
+Python PATH'e eklenmemiş. Şunu dene:
+
+```bash
+py -m pip install numpy opencv-python matplotlib pillow
+```
+
+Hâlâ çalışmıyorsa Python'u kaldırıp yeniden kur, kurulum sırasında **"Add Python to PATH"** kutucuğunu işaretle.
+
+---
+
+### Kod çalışıyor ama çıktı görüntüsü kaydedilmiyor
+
+`outputs/` klasörünün var olduğundan emin ol. Yoksa oluştur:
+
+```bash
+mkdir outputs
 ```
 
 ---
@@ -71,28 +141,8 @@ python main.py
 ## Branch Kuralları
 
 - Her kişi kendi branch'inde çalışır: `kisi1/temel`, `kisi2/geometrik` vb.
-- `main` branch'e doğrudan push yapılmaz — Pull Request açılır.
+- `main` branch'e doğrudan push yapılmaz — Pull Request (PR) açılır.
 - PR açmadan önce kendi modülünü izole test et.
-
----
-
-## Kapsanan Modüller
-
-1. Gri tonlama dönüşümü (ITU-R BT.601)
-2. Binary dönüşüm
-3. Görüntü döndürme (inverse mapping)
-4. Görüntü kırpma
-5. Yakınlaştırma/uzaklaştırma (Nearest Neighbor)
-6. Renk uzayı dönüşümü (RGB → HSV)
-7. Histogram hesabı ve germe
-8. Aritmetik işlemler (toplama, çarpma)
-9. Parlaklık ve kontrast ayarı
-10. Konvolüsyon ve Gauss filtresi
-11. Eşikleme (global ve adaptif)
-12. Sobel kenar bulma operatörü
-13. Gürültü ekleme (Salt & Pepper) ve temizleme
-14. Bulanıklaştırma filtreleri (Mean, Gauss)
-15. Morfolojik işlemler (Dilation, Erosion, Opening, Closing)
 
 ---
 
