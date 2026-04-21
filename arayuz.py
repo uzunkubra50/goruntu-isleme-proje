@@ -54,9 +54,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # Kisi 5 modulu (bu dosya ile ayni klasorde olmali)
 from kisi5_morfoloji import dilation, erosion, opening, closing
+from kisi1_temel_donusumler import gri_tonlama, binary_donusum, bgr_to_hsv, histogram_germe
 
-# Diger kisiler hazir oldugunda bu satirlarin yorumunu kaldiirin:
-# from kisi1_temel     import gri_donusum, binary_donusum, rgb_to_hsv, histogram_germe
 # from kisi2_geometrik import dondur, kirp, olcekle, aritmetik
 # from kisi3_filtreleme import parlaklik_kontrast, konvolusyon, gauss, bulanik
 # from kisi4_kenar     import esikleme, sobel, gurultu_ekle
@@ -168,13 +167,99 @@ class SekmeBaz(ttk.Frame):
 
 
 # ===========================================================================
-# KİŞİ 1 SEKMESİ — Gri, Binary, HSV, Histogram (PLACEHOLDER)
+# KİŞİ 1 SEKMESİ — Gri, Binary, HSV, Histogram [AKTIF]
 # ===========================================================================
 class Kisi1Sekmesi(SekmeBaz):
     def __init__(self, parent, cb, **kw):
         super().__init__(parent, cb, **kw)
-        self._placeholder_goster(self, 1,
-            "Gri Donusum  |  Binary  |  RGB->HSV  |  Histogram Germe")
+        self._kart_imgbox = {}
+        self._olustur_arayuz()
+
+    def _olustur_arayuz(self):
+        # ---- UST BAR ----
+        ust = tk.Frame(self, bg=BG_PANEL, pady=10)
+        ust.pack(fill='x')
+        tk.Label(ust, text="Temel Dönüşümler", font=FONT_TITLE, fg=ACCENT, bg=BG_PANEL).pack(side='left', padx=20)
+
+        # ---- KONTROL PANELİ ----
+        kontrol = tk.Frame(self, bg=BG_CARD, bd=0, highlightthickness=1, highlightbackground=BORDER)
+        kontrol.pack(fill='x', padx=15, pady=(8, 4))
+
+        tk.Label(kontrol, text="Binary Eşik Değeri:", font=FONT_BODY, fg=TEXT_MAIN, bg=BG_CARD).grid(row=0, column=0, padx=(15,5), pady=10)
+        
+        self._esik_var = tk.IntVar(value=127)
+        slider = tk.Scale(kontrol, from_=0, to=255, resolution=1, orient='horizontal', variable=self._esik_var,
+                          bg=BG_CARD, fg=TEXT_MAIN, troughcolor=BG_DARK, highlightthickness=0, bd=0, length=160)
+        slider.grid(row=0, column=1, padx=5)
+
+        HoverButton(kontrol, text="  Uygula  ", font=FONT_HEAD, bg=ACCENT, fg='white', relief='flat', cursor='hand2',
+                    hover_bg=BTN_HOVER, padx=16, pady=6, command=self._uygula).grid(row=0, column=2, padx=30)
+
+        # ---- GÖRÜNTÜ GRID (2 x 3) ----
+        self._grid_frame = tk.Frame(self, bg=BG_DARK)
+        self._grid_frame.pack(expand=True, fill='both', padx=15, pady=8)
+
+        islemler = [
+            ("Orijinal (BGR)", "orijinal"),
+            ("1. Gri Tonlama", "gri"),
+            ("2. Binary Dönüşüm", "binary"),
+            ("3. RGB -> HSV", "hsv"),
+            ("4. Histogram Germe", "hist")
+        ]
+
+        for idx, (baslik, anahtar) in enumerate(islemler):
+            satir, sutun = divmod(idx, 3)
+            kart = tk.Frame(self._grid_frame, bg=BG_CARD, bd=0, highlightthickness=1, highlightbackground=BORDER)
+            kart.grid(row=satir, column=sutun, padx=8, pady=8, sticky='nsew')
+            self._grid_frame.columnconfigure(sutun, weight=1)
+            self._grid_frame.rowconfigure(satir, weight=1)
+
+            tk.Label(kart, text=baslik, font=FONT_BODY, fg=ACCENT if idx==0 else TEXT_MAIN, bg=BG_CARD, pady=6).pack()
+            imgbox = tk.Label(kart, bg=BG_DARK, text="Görüntü bekleniyor...", fg=TEXT_DIM, font=FONT_SMALL)
+            imgbox.pack(expand=True, fill='both', padx=6, pady=(0, 6))
+            self._kart_imgbox[anahtar] = imgbox
+
+    def goruntu_ayarla(self, bgr: np.ndarray):
+        super().goruntu_ayarla(bgr)
+        self._guncelle_imgbox('orijinal', bgr)
+        for k in ('gri', 'binary', 'hsv', 'hist'):
+            self._kart_imgbox[k].config(image='', text="Uygula'ya basın")
+            self._kart_imgbox[k].image = None
+
+    def _uygula(self):
+        if self._aktif_goruntu is None:
+            messagebox.showwarning("Uyarı", "Lütfen önce bir görüntü yükleyin!")
+            return
+
+        esik = self._esik_var.get()
+        bgr_kopya = self._aktif_goruntu.copy()
+
+        import threading
+        def _hesapla():
+            try:
+                # Kişi 1 Fonksiyonlarını Çağırıyoruz
+                gri_img  = gri_tonlama(bgr_kopya)
+                bin_img  = binary_donusum(gri_img, threshold=esik)
+                hsv_img  = bgr_to_hsv(bgr_kopya)
+                hist_img = histogram_germe(gri_img)
+
+                sonuclar = {'orijinal': bgr_kopya, 'gri': gri_img, 'binary': bin_img, 'hsv': hsv_img, 'hist': hist_img}
+                self.after(0, lambda: self._hesaplama_bitti(sonuclar))
+            except Exception as exc:
+                self.after(0, lambda: messagebox.showerror("Hata", str(exc)))
+
+        threading.Thread(target=_hesapla, daemon=True).start()
+
+    def _hesaplama_bitti(self, sonuclar):
+        for k, arr in sonuclar.items():
+            self._guncelle_imgbox(k, arr)
+
+    def _guncelle_imgbox(self, anahtar: str, arr: np.ndarray):
+        box = self._kart_imgbox.get(anahtar)
+        if box is None: return
+        photo = numpy_to_photoimage(arr, max_w=320, max_h=220)
+        box.config(image=photo, text='')
+        box.image = photo
 
 
 # ===========================================================================
