@@ -57,7 +57,8 @@ from kisi5_morfoloji import dilation, erosion, opening, closing
 from kisi1_temel_donusumler import gri_tonlama, binary_donusum, bgr_to_hsv, histogram_germe
 from kisi2_geometrik import (goruntu_dondur, goruntu_kirp,
                               goruntu_olcekle, goruntu_topla,
-                              goruntu_carp, goruntu_fark)
+                              goruntu_carp, goruntu_fark,
+                              goruntu_yakinlastir, goruntu_uzaklastir)
 
 # from kisi2_geometrik import dondur, kirp, olcekle, aritmetik
 # from kisi3_filtreleme import parlaklik_kontrast, konvolusyon, gauss, bulanik
@@ -432,8 +433,8 @@ class Kisi2Sekmesi(SekmeBaz):
                 kirp  = goruntu_kirp(bgr_kopya, x1, y1, x2, y2)
  
                 # 4.5 Yakinlastirma / Uzaklastirma
-                buyut  = goruntu_olcekle(bgr_kopya, olcek_x=olcek)
-                kucult = goruntu_olcekle(bgr_kopya, olcek_x=0.5)
+                buyut  = goruntu_yakinlastir(bgr, olcek)
+                kucult = goruntu_uzaklastir(bgr, 0.5)
  
                 # 4.8 Aritmetik: orijinal + aydinlatma katmani
                 katman = np.full_like(bgr_kopya, 60)           # +60 parlaklik katmani
