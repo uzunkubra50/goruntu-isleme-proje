@@ -52,17 +52,16 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-# Kisi 5 modulu (bu dosya ile ayni klasorde olmali)
+# Kişi modülleri
 from kisi5_morfoloji import dilation, erosion, opening, closing
 from kisi1_temel_donusumler import gri_tonlama, binary_donusum, bgr_to_hsv, histogram_germe
 from kisi2_geometrik import (goruntu_dondur, goruntu_kirp,
                               goruntu_olcekle, goruntu_topla,
                               goruntu_carp, goruntu_fark,
                               goruntu_yakinlastir, goruntu_uzaklastir)
-
-# from kisi2_geometrik import dondur, kirp, olcekle, aritmetik
-# from kisi3_filtreleme import parlaklik_kontrast, konvolusyon, gauss, bulanik
-# from kisi4_kenar     import esikleme, sobel, gurultu_ekle
+from kisi3_filtreleme import parlaklik_kontrast_ayari, gauss_filtresi, mean_blur, gaussian_blur
+from kisi4_goruntu_isleme import (global_esikleme, adaptif_esikleme, sobel_kenar_bulma,
+                                  salt_pepper_gurultu_ekle, mean_filtre, median_filtre, rgb_to_gray)
 
 
 # ---------------------------------------------------------------------------
@@ -433,8 +432,8 @@ class Kisi2Sekmesi(SekmeBaz):
                 kirp  = goruntu_kirp(bgr_kopya, x1, y1, x2, y2)
  
                 # 4.5 Yakinlastirma / Uzaklastirma
-                buyut  = goruntu_yakinlastir(bgr, olcek)
-                kucult = goruntu_uzaklastir(bgr, 0.5)
+                buyut  = goruntu_yakinlastir(bgr_kopya, olcek)
+                kucult = goruntu_uzaklastir(bgr_kopya, 0.5)
  
                 # 4.8 Aritmetik: orijinal + aydinlatma katmani
                 katman = np.full_like(bgr_kopya, 60)           # +60 parlaklik katmani
@@ -455,7 +454,8 @@ class Kisi2Sekmesi(SekmeBaz):
                 }
                 self.after(0, lambda: self._hesaplama_bitti(sonuclar, aci, olcek))
             except Exception as exc:
-                self.after(0, lambda: self._hata(str(exc)))
+                error_msg = str(exc)
+                self.after(0, lambda: self._hata(error_msg))
  
         threading.Thread(target=_hesapla, daemon=True).start()
  
@@ -516,20 +516,212 @@ if __name__ == "__main__":
 # KİŞİ 3 SEKMESİ — Parlaklik, Konvolusyon, Gauss (PLACEHOLDER)
 # ===========================================================================
 class Kisi3Sekmesi(SekmeBaz):
+    """
+    Kisi 3 — Filtreleme & Konvolüsyon
+    Parlaklik/Kontrast | Gauss Filtresi | Mean/Gauss Blur
+    """
     def __init__(self, parent, cb, **kw):
         super().__init__(parent, cb, **kw)
-        self._placeholder_goster(self, 3,
-            "Parlaklik/Kontrast  |  Konvolusyon  |  Gauss  |  Bulaniklik")
+        self._sonuclar = {}
+        self._kart_imgbox = {}
+        self._olustur_arayuz()
 
+    def _olustur_arayuz(self):
+        ust = tk.Frame(self, bg=BG_PANEL, pady=10)
+        ust.pack(fill='x')
+        tk.Label(ust, text="Filtreleme & Konvolüsyon", font=FONT_TITLE, fg=ACCENT, bg=BG_PANEL).pack(side='left', padx=20)
 
-# ===========================================================================
-# KİŞİ 4 SEKMESİ — Esikleme, Sobel, Gurultu (PLACEHOLDER)
-# ===========================================================================
+        kontrol = tk.Frame(self, bg=BG_CARD, bd=0, highlightthickness=1, highlightbackground=BORDER)
+        kontrol.pack(fill='x', padx=15, pady=(8, 4))
+
+        # Kontrast (Alpha)
+        tk.Label(kontrol, text="Kontrast:", font=FONT_BODY, fg=TEXT_MAIN, bg=BG_CARD).grid(row=0, column=0, padx=(15,5))
+        self._alpha_var = tk.DoubleVar(value=1.0)
+        tk.Scale(kontrol, from_=0.1, to=3.0, resolution=0.1, orient='horizontal', variable=self._alpha_var,
+                 bg=BG_CARD, fg=TEXT_MAIN, length=120, highlightthickness=0).grid(row=0, column=1)
+
+        # Parlaklık (Beta)
+        tk.Label(kontrol, text="Parlaklık:", font=FONT_BODY, fg=TEXT_MAIN, bg=BG_CARD).grid(row=0, column=2, padx=(15,5))
+        self._beta_var = tk.IntVar(value=0)
+        tk.Scale(kontrol, from_=-100, to=100, orient='horizontal', variable=self._beta_var,
+                 bg=BG_CARD, fg=TEXT_MAIN, length=120, highlightthickness=0).grid(row=0, column=3)
+
+        # Kernel Boyutu
+        tk.Label(kontrol, text="Kernel:", font=FONT_BODY, fg=TEXT_MAIN, bg=BG_CARD).grid(row=0, column=4, padx=(15,5))
+        self._ksize_var = tk.IntVar(value=5)
+        tk.Scale(kontrol, from_=3, to=15, resolution=2, orient='horizontal', variable=self._ksize_var,
+                 bg=BG_CARD, fg=TEXT_MAIN, length=100, highlightthickness=0).grid(row=0, column=5)
+
+        # Uygula Butonu
+        self._btn = HoverButton(kontrol, text=" Uygula ", font=FONT_HEAD, bg=ACCENT, fg='white', relief='flat',
+                                 padx=15, pady=5, command=self._uygula)
+        self._btn.grid(row=0, column=6, padx=20, pady=10)
+
+        # Görüntü Alanı
+        self._grid_frame = tk.Frame(self, bg=BG_DARK)
+        self._grid_frame.pack(expand=True, fill='both', padx=15, pady=8)
+
+        islemler = [
+            ("Orijinal", "orijinal"),
+            ("Parlaklık/Kontrast", "pk"),
+            ("Gauss Filtresi", "gauss"),
+            ("Mean Blur", "mean"),
+            ("Gaussian Blur", "gblur")
+        ]
+
+        for idx, (baslik, anahtar) in enumerate(islemler):
+            satir, sutun = divmod(idx, 3)
+            kart = tk.Frame(self._grid_frame, bg=BG_CARD, bd=0, highlightthickness=1, highlightbackground=BORDER)
+            kart.grid(row=satir, column=sutun, padx=8, pady=8, sticky='nsew')
+            self._grid_frame.columnconfigure(sutun, weight=1)
+            self._grid_frame.rowconfigure(satir, weight=1)
+            tk.Label(kart, text=baslik, font=FONT_BODY, fg=TEXT_MAIN, bg=BG_CARD, pady=5).pack()
+            box = tk.Label(kart, bg=BG_DARK, text="Bekleniyor...")
+            box.pack(expand=True, fill='both', padx=5, pady=5)
+            self._kart_imgbox[anahtar] = box
+
+    def goruntu_ayarla(self, bgr):
+        super().goruntu_ayarla(bgr)
+        self._guncelle_imgbox('orijinal', bgr)
+
+    def _uygula(self):
+        if self._aktif_goruntu is None: return
+        self._btn.config(state='disabled', text="Isleniyor...")
+        bgr = self._aktif_goruntu.copy()
+        alpha = self._alpha_var.get()
+        beta = self._beta_var.get()
+        k = self._ksize_var.get()
+
+        import threading
+        def _run():
+            try:
+                pk = parlaklik_kontrast_ayari(bgr, alpha=alpha, beta=beta)
+                gri = goruntu_gri_yap(bgr)
+                gauss = gauss_filtresi(gri, kernel_boyutu=k, sigma=1.0)
+                mean = mean_blur(gri, kernel_boyutu=k)
+                gblur = gaussian_blur(gri, kernel_boyutu=k, sigma=1.0)
+                
+                sonuclar = {'orijinal': bgr, 'pk': pk, 'gauss': gauss, 'mean': mean, 'gblur': gblur}
+                self.after(0, lambda: self._bitti(sonuclar))
+            except Exception as e:
+                self.after(0, lambda: messagebox.showerror("Hata", str(e)))
+                self.after(0, lambda: self._btn.config(state='normal', text=" Uygula "))
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _bitti(self, sonuclar):
+        self._sonuclar = sonuclar
+        for k, arr in sonuclar.items(): self._guncelle_imgbox(k, arr)
+        self._btn.config(state='normal', text=" Uygula ")
+
+    def _guncelle_imgbox(self, k, arr):
+        box = self._kart_imgbox.get(k)
+        if box:
+            photo = numpy_to_photoimage(arr, max_w=320, max_h=220)
+            box.config(image=photo, text='')
+            box.image = photo
+
 class Kisi4Sekmesi(SekmeBaz):
+    """
+    Kisi 4 — Görüntü İşleme
+    Eşikleme | Sobel Kenar | Gürültü Ekleme & Temizleme
+    """
     def __init__(self, parent, cb, **kw):
         super().__init__(parent, cb, **kw)
-        self._placeholder_goster(self, 4,
-            "Esikleme (Global & Adaptif)  |  Sobel Kenar  |  Gurultu")
+        self._sonuclar = {}
+        self._kart_imgbox = {}
+        self._olustur_arayuz()
+
+    def _olustur_arayuz(self):
+        ust = tk.Frame(self, bg=BG_PANEL, pady=10)
+        ust.pack(fill='x')
+        tk.Label(ust, text="Kenar & Eşikleme & Gürültü", font=FONT_TITLE, fg=ACCENT, bg=BG_PANEL).pack(side='left', padx=20)
+
+        kontrol = tk.Frame(self, bg=BG_CARD, bd=0, highlightthickness=1, highlightbackground=BORDER)
+        kontrol.pack(fill='x', padx=15, pady=(8, 4))
+
+        # Eşikleme Değerleri
+        tk.Label(kontrol, text="Eşik:", font=FONT_BODY, fg=TEXT_MAIN, bg=BG_CARD).grid(row=0, column=0, padx=5)
+        self._esik_var = tk.IntVar(value=127)
+        tk.Scale(kontrol, from_=0, to=255, orient='horizontal', variable=self._esik_var, bg=BG_CARD, fg=TEXT_MAIN, length=100, highlightthickness=0).grid(row=0, column=1)
+
+        tk.Label(kontrol, text="Sobel Eşik:", font=FONT_BODY, fg=TEXT_MAIN, bg=BG_CARD).grid(row=0, column=2, padx=5)
+        self._sobel_var = tk.IntVar(value=50)
+        tk.Scale(kontrol, from_=0, to=200, orient='horizontal', variable=self._sobel_var, bg=BG_CARD, fg=TEXT_MAIN, length=100, highlightthickness=0).grid(row=0, column=3)
+
+        tk.Label(kontrol, text="Gürültü %:", font=FONT_BODY, fg=TEXT_MAIN, bg=BG_CARD).grid(row=0, column=4, padx=5)
+        self._noise_var = tk.DoubleVar(value=0.05)
+        tk.Scale(kontrol, from_=0, to=0.5, resolution=0.01, orient='horizontal', variable=self._noise_var, bg=BG_CARD, fg=TEXT_MAIN, length=100, highlightthickness=0).grid(row=0, column=5)
+
+        self._btn = HoverButton(kontrol, text=" Uygula ", font=FONT_HEAD, bg=ACCENT, fg='white', relief='flat', padx=15, pady=5, command=self._uygula)
+        self._btn.grid(row=0, column=6, padx=20, pady=10)
+
+        # Görüntü Alanı
+        self._grid_frame = tk.Frame(self, bg=BG_DARK)
+        self._grid_frame.pack(expand=True, fill='both', padx=15, pady=8)
+
+        islemler = [
+            ("Gri Orijinal", "gri"),
+            ("Global Eşik", "global"),
+            ("Adaptif Eşik", "adaptif"),
+            ("Sobel Kenar", "sobel"),
+            ("S&P Gürültü", "noise"),
+            ("Median Filtre", "median")
+        ]
+
+        for idx, (baslik, anahtar) in enumerate(islemler):
+            satir, sutun = divmod(idx, 3)
+            kart = tk.Frame(self._grid_frame, bg=BG_CARD, bd=0, highlightthickness=1, highlightbackground=BORDER)
+            kart.grid(row=satir, column=sutun, padx=8, pady=8, sticky='nsew')
+            self._grid_frame.columnconfigure(sutun, weight=1)
+            self._grid_frame.rowconfigure(satir, weight=1)
+            tk.Label(kart, text=baslik, font=FONT_BODY, fg=TEXT_MAIN, bg=BG_CARD, pady=5).pack()
+            box = tk.Label(kart, bg=BG_DARK, text="Bekleniyor...")
+            box.pack(expand=True, fill='both', padx=5, pady=5)
+            self._kart_imgbox[anahtar] = box
+
+    def goruntu_ayarla(self, bgr):
+        super().goruntu_ayarla(bgr)
+        gri = rgb_to_gray(bgr)
+        self._guncelle_imgbox('gri', gri)
+
+    def _uygula(self):
+        if self._aktif_goruntu is None: return
+        self._btn.config(state='disabled', text="Isleniyor...")
+        bgr = self._aktif_goruntu.copy()
+        esik = self._esik_var.get()
+        sobel_esik = self._sobel_var.get()
+        noise_rate = self._noise_var.get()
+
+        import threading
+        def _run():
+            try:
+                gri = rgb_to_gray(bgr)
+                glob = global_esikleme(gri, esik=esik)
+                adap = adaptif_esikleme(gri, pencere_boyutu=11, C=5)
+                edges, _, _ = sobel_kenar_bulma(gri, esik=sobel_esik)
+                noise = salt_pepper_gurultu_ekle(gri, gurultu_orani=noise_rate)
+                med = median_filtre(noise, pencere_boyutu=3)
+                
+                sonuclar = {'gri': gri, 'global': glob, 'adaptif': adap, 'sobel': edges, 'noise': noise, 'median': med}
+                self.after(0, lambda: self._bitti(sonuclar))
+            except Exception as e:
+                self.after(0, lambda: messagebox.showerror("Hata", str(e)))
+                self.after(0, lambda: self._btn.config(state='normal', text=" Uygula "))
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _bitti(self, sonuclar):
+        self._sonuclar = sonuclar
+        for k, arr in sonuclar.items(): self._guncelle_imgbox(k, arr)
+        self._btn.config(state='normal', text=" Uygula ")
+
+    def _guncelle_imgbox(self, k, arr):
+        box = self._kart_imgbox.get(k)
+        if box:
+            photo = numpy_to_photoimage(arr, max_w=320, max_h=220)
+            box.config(image=photo, text='')
+            box.image = photo
 
 
 # ===========================================================================
@@ -868,24 +1060,26 @@ class AnaPencere(tk.Tk):
         tk.Label(sol_panel, text="Grup Uyeleri",
                  font=FONT_BODY, fg=TEXT_DIM, bg=BG_PANEL, pady=4).pack()
 
-        kisiler = [
-            ("Kisi 1", "Temel Islemler",    False),
-            ("Kisi 2", "Geometrik",          False),
-            ("Kisi 3", "Filtreleme",         False),
-            ("Kisi 4", "Kenar / Esikleme",   False),
-            ("Kisi 5", "Morfoloji [AKTIF]",  True),
+        self._yan_menu_labels = []  # Label referanslarını tutmak için
+        self._kisiler_verisi = [
+            ("Kisi 1", "Temel Islemler"),
+            ("Kisi 2", "Geometrik"),
+            ("Kisi 3", "Filtreleme"),
+            ("Kisi 4", "Kenar / Esikleme"),
+            ("Kisi 5", "Morfoloji"),
         ]
-        for kod, aciklama, aktif in kisiler:
+
+        for kod, aciklama in self._kisiler_verisi:
             satir = tk.Frame(sol_panel, bg=BG_PANEL)
             satir.pack(fill='x', padx=8, pady=2)
-            renk = SUCCESS if aktif else TEXT_DIM
-            sembol = "●" if aktif else "○"
-            tk.Label(satir, text="{} {}".format(sembol, kod),
-                     font=FONT_BODY, fg=renk, bg=BG_PANEL, width=8,
-                     anchor='w').pack(side='left')
-            tk.Label(satir, text=aciklama, font=FONT_SMALL,
-                     fg=renk if aktif else TEXT_DIM,
-                     bg=BG_PANEL, anchor='w').pack(side='left')
+            
+            lbl_kod = tk.Label(satir, text="○ " + kod, font=FONT_BODY, fg=TEXT_DIM, bg=BG_PANEL, width=8, anchor='w')
+            lbl_kod.pack(side='left')
+            
+            lbl_desc = tk.Label(satir, text=aciklama, font=FONT_SMALL, fg=TEXT_DIM, bg=BG_PANEL, anchor='w')
+            lbl_desc.pack(side='left')
+            
+            self._yan_menu_labels.append((lbl_kod, lbl_desc))
 
         # ============================================================
         # SAG: Sekmeli panel
@@ -912,8 +1106,27 @@ class AnaPencere(tk.Tk):
             self._notebook.add(frame, text="  {}  ".format(sekme_adi))
             self._sekmeler[sekme_adi] = frame
 
+        # Sekme degisince yan menuyu guncelle
+        self._notebook.bind("<<NotebookTabChanged>>", self._sekme_degisti)
+
         # Kisi 5 sekmesini varsayilan sec
         self._notebook.select(4)
+
+    def _sekme_degisti(self, event):
+        """Sekme degistiginde yan menudeki [AKTIF] vurgusunu gunceller."""
+        secili_index = self._notebook.index("current")
+        
+        for i, (lbl_kod, lbl_desc) in enumerate(self._yan_menu_labels):
+            kod_metni, desc_metni = self._kisiler_verisi[i]
+            
+            if i == secili_index:
+                # Aktif olan
+                lbl_kod.config(text="● " + kod_metni, fg=SUCCESS)
+                lbl_desc.config(text=desc_metni + " [AKTIF]", fg=SUCCESS)
+            else:
+                # Pasif olanlar
+                lbl_kod.config(text="○ " + kod_metni, fg=TEXT_DIM)
+                lbl_desc.config(text=desc_metni, fg=TEXT_DIM)
 
     # ------------------------------------------------------------------
     def _goruntu_yukle(self):
