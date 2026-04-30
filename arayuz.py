@@ -55,6 +55,9 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 # Kisi 5 modulu (bu dosya ile ayni klasorde olmali)
 from kisi5_morfoloji import dilation, erosion, opening, closing
 from kisi1_temel_donusumler import gri_tonlama, binary_donusum, bgr_to_hsv, histogram_germe
+from kisi2_geometrik import (goruntu_dondur, goruntu_kirp,
+                              goruntu_olcekle, goruntu_topla,
+                              goruntu_carp, goruntu_fark)
 
 # from kisi2_geometrik import dondur, kirp, olcekle, aritmetik
 # from kisi3_filtreleme import parlaklik_kontrast, konvolusyon, gauss, bulanik
@@ -266,10 +269,246 @@ class Kisi1Sekmesi(SekmeBaz):
 # KİŞİ 2 SEKMESİ — Dondurme, Kirpma, Olcekleme (PLACEHOLDER)
 # ===========================================================================
 class Kisi2Sekmesi(SekmeBaz):
+    """
+    Kisi 2 — Geometrik Islemler
+    Dondurme | Kirpma | Olcekleme | Aritmetik Islemler
+    """
+ 
     def __init__(self, parent, cb, **kw):
         super().__init__(parent, cb, **kw)
-        self._placeholder_goster(self, 2,
-            "Dondurme  |  Kirpma  |  Olcekleme  |  Aritmetik Islemler")
+        self._sonuclar = {}
+        self._kart_imgbox = {}
+        self._olustur_arayuz()
+ 
+    # ------------------------------------------------------------------
+    def _olustur_arayuz(self):
+        # ---- UST BAR ----
+        ust = tk.Frame(self, bg=BG_PANEL, pady=10)
+        ust.pack(fill='x')
+        tk.Label(ust, text="Geometrik Islemler",
+                 font=FONT_TITLE, fg=ACCENT, bg=BG_PANEL).pack(side='left', padx=20)
+        tk.Label(ust, text="Kisi 2 — Dondurme | Kirpma | Olcekleme | Aritmetik",
+                 font=FONT_BODY, fg=TEXT_DIM, bg=BG_PANEL).pack(side='left', padx=5)
+ 
+        # ---- KONTROL PANELİ ----
+        kontrol = tk.Frame(self, bg=BG_CARD, bd=0,
+                           highlightthickness=1, highlightbackground=BORDER)
+        kontrol.pack(fill='x', padx=15, pady=(8, 4))
+ 
+        # -- Dondurme acisi --
+        tk.Label(kontrol, text="Dondurme (°):", font=FONT_BODY,
+                 fg=TEXT_MAIN, bg=BG_CARD).grid(row=0, column=0, padx=(15,4), pady=10)
+        self._aci_var = tk.IntVar(value=45)
+        self._aci_lbl = tk.Label(kontrol, text="45°", font=FONT_HEAD,
+                                  fg=ACCENT, bg=BG_CARD, width=5)
+        self._aci_lbl.grid(row=0, column=2, padx=4)
+        tk.Scale(kontrol, from_=-180, to=180, resolution=1,
+                 orient='horizontal', variable=self._aci_var,
+                 bg=BG_CARD, fg=TEXT_MAIN, troughcolor=BG_DARK,
+                 highlightthickness=0, bd=0, sliderrelief='flat',
+                 activebackground=ACCENT, length=140,
+                 command=lambda v: self._aci_lbl.config(
+                     text="{}°".format(v))).grid(row=0, column=1, padx=4)
+ 
+        # -- Olcek faktoru --
+        tk.Label(kontrol, text="Olcek (x):", font=FONT_BODY,
+                 fg=TEXT_MAIN, bg=BG_CARD).grid(row=0, column=3, padx=(20,4))
+        self._olcek_var = tk.DoubleVar(value=1.5)
+        self._olcek_lbl = tk.Label(kontrol, text="1.50x", font=FONT_HEAD,
+                                    fg=ACCENT2, bg=BG_CARD, width=6)
+        self._olcek_lbl.grid(row=0, column=5, padx=4)
+        tk.Scale(kontrol, from_=0.1, to=4.0, resolution=0.1,
+                 orient='horizontal', variable=self._olcek_var,
+                 bg=BG_CARD, fg=TEXT_MAIN, troughcolor=BG_DARK,
+                 highlightthickness=0, bd=0, sliderrelief='flat',
+                 activebackground=ACCENT2, length=130,
+                 command=lambda v: self._olcek_lbl.config(
+                     text="{:.2f}x".format(float(v)))).grid(row=0, column=4, padx=4)
+ 
+        # -- Uygula + Kaydet --
+        self._buton_uygula = HoverButton(
+            kontrol, text=" Uygula ", font=FONT_HEAD,
+            bg=ACCENT, fg='white', relief='flat', cursor='hand2',
+            hover_bg=BTN_HOVER, padx=16, pady=6,
+            command=self._uygula)
+        self._buton_uygula.grid(row=0, column=6, padx=(25, 8))
+ 
+        HoverButton(kontrol, text=" Kaydet ", font=FONT_HEAD,
+                    bg=BG_DARK, fg=ACCENT2, relief='flat', cursor='hand2',
+                    hover_bg='#252535', padx=16, pady=6,
+                    command=self._kaydet).grid(row=0, column=7, padx=(0, 15))
+ 
+        # -- Kirpma ayarlari (ikinci satir) --
+        tk.Label(kontrol, text="Kirpma (x1,y1,x2,y2):", font=FONT_BODY,
+                 fg=TEXT_MAIN, bg=BG_CARD).grid(row=1, column=0, padx=(15,4), pady=(0,8))
+ 
+        self._kirp_vars = []
+        etiketler = ["x1", "y1", "x2", "y2"]
+        varsayilanlar = [50, 30, 250, 180]
+        for i, (et, vy) in enumerate(zip(etiketler, varsayilanlar)):
+            tk.Label(kontrol, text=et+":", font=FONT_SMALL,
+                     fg=TEXT_DIM, bg=BG_CARD).grid(row=1, column=1+i*2, padx=(8,2))
+            var = tk.IntVar(value=vy)
+            tk.Spinbox(kontrol, from_=0, to=9999, textvariable=var,
+                       width=5, font=FONT_SMALL,
+                       bg=BG_DARK, fg=TEXT_MAIN,
+                       buttonbackground=BG_CARD,
+                       relief='flat').grid(row=1, column=2+i*2, padx=(0,4))
+            self._kirp_vars.append(var)
+ 
+        # ---- GÖRÜNTÜ GRID (2 x 4) ----
+        self._grid_frame = tk.Frame(self, bg=BG_DARK)
+        self._grid_frame.pack(expand=True, fill='both', padx=15, pady=8)
+ 
+        islemler = [
+            ("Orijinal (BGR)",         "orijinal"),
+            ("4.3 Dondurme",           "dondurme"),
+            ("4.4 Kirpma",             "kirpma"),
+            ("4.5 Yakinlastirma",      "buyut"),
+            ("4.5 Uzaklastirma",       "kucult"),
+            ("4.8 Toplama",            "toplama"),
+            ("4.8 Carpma",             "carpma"),
+            ("4.8 Fark",               "fark"),
+        ]
+ 
+        for idx, (baslik, anahtar) in enumerate(islemler):
+            satir, sutun = divmod(idx, 4)
+            kart = tk.Frame(self._grid_frame, bg=BG_CARD, bd=0,
+                            highlightthickness=1, highlightbackground=BORDER)
+            kart.grid(row=satir, column=sutun, padx=7, pady=7, sticky='nsew')
+            self._grid_frame.columnconfigure(sutun, weight=1)
+            self._grid_frame.rowconfigure(satir, weight=1)
+ 
+            tk.Label(kart, text=baslik, font=FONT_BODY,
+                     fg=ACCENT if idx == 0 else TEXT_MAIN,
+                     bg=BG_CARD, pady=5).pack()
+            imgbox = tk.Label(kart, bg=BG_DARK,
+                              text="Goruntu bekleniyor...",
+                              fg=TEXT_DIM, font=FONT_SMALL,
+                              relief='flat', width=28, height=9)
+            imgbox.pack(expand=True, fill='both', padx=5, pady=(0, 5))
+            self._kart_imgbox[anahtar] = imgbox
+ 
+        # Durum cubugu
+        self._durum_var = tk.StringVar(value="Goruntu yukleyin ve 'Uygula' tusuna basin.")
+        tk.Label(self, textvariable=self._durum_var,
+                 font=FONT_SMALL, fg=TEXT_DIM, bg=BG_DARK,
+                 anchor='w', padx=15, pady=4).pack(fill='x', side='bottom')
+ 
+    # ------------------------------------------------------------------
+    def goruntu_ayarla(self, bgr: np.ndarray):
+        super().goruntu_ayarla(bgr)
+        self._sonuclar = {}
+        self._guncelle_imgbox('orijinal', bgr)
+        for k in list(self._kart_imgbox.keys()):
+            if k != 'orijinal':
+                self._kart_imgbox[k].config(image='', text="Uygula'ya basin")
+                self._kart_imgbox[k].image = None
+        self._durum("Goruntu yuklendi. Parametreleri ayarlayin ve 'Uygula'ya basin.")
+ 
+    # ------------------------------------------------------------------
+    def _uygula(self):
+        if self._aktif_goruntu is None:
+            messagebox.showwarning("Uyari", "Lutfen once bir goruntu yukleyin!")
+            return
+ 
+        self._buton_uygula.config(state='disabled', text=" Isleniyor... ")
+        self._durum("Geometrik islemler hesaplaniyor...")
+        self.update_idletasks()
+ 
+        bgr_kopya   = self._aktif_goruntu.copy()
+        aci         = self._aci_var.get()
+        olcek       = self._olcek_var.get()
+        x1, y1, x2, y2 = [v.get() for v in self._kirp_vars]
+ 
+        import threading
+ 
+        def _hesapla():
+            try:
+                # 4.3 Dondurme
+                dondu = goruntu_dondur(bgr_kopya, aci_derece=aci)
+ 
+                # 4.4 Kirpma
+                kirp  = goruntu_kirp(bgr_kopya, x1, y1, x2, y2)
+ 
+                # 4.5 Yakinlastirma / Uzaklastirma
+                buyut  = goruntu_olcekle(bgr_kopya, olcek_x=olcek)
+                kucult = goruntu_olcekle(bgr_kopya, olcek_x=0.5)
+ 
+                # 4.8 Aritmetik: orijinal + aydinlatma katmani
+                katman = np.full_like(bgr_kopya, 60)           # +60 parlaklik katmani
+                topl  = goruntu_topla(bgr_kopya, katman)
+                carp  = goruntu_carp(bgr_kopya,
+                                     (bgr_kopya * 0.6).astype(np.uint8))
+                fark  = goruntu_fark(bgr_kopya, katman)
+ 
+                sonuclar = {
+                    'orijinal': bgr_kopya,
+                    'dondurme': dondu,
+                    'kirpma'  : kirp,
+                    'buyut'   : buyut,
+                    'kucult'  : kucult,
+                    'toplama' : topl,
+                    'carpma'  : carp,
+                    'fark'    : fark,
+                }
+                self.after(0, lambda: self._hesaplama_bitti(sonuclar, aci, olcek))
+            except Exception as exc:
+                self.after(0, lambda: self._hata(str(exc)))
+ 
+        threading.Thread(target=_hesapla, daemon=True).start()
+ 
+    # ------------------------------------------------------------------
+    def _hesaplama_bitti(self, sonuclar, aci, olcek):
+        self._sonuclar = sonuclar
+        for k, arr in sonuclar.items():
+            self._guncelle_imgbox(k, arr)
+        self._durum(
+            "Tamamlandi! Dondurme: {}°  |  Olcek: {:.2f}x  |  "
+            "Goruntu: {}x{}".format(
+                aci, olcek,
+                sonuclar['orijinal'].shape[1],
+                sonuclar['orijinal'].shape[0])
+        )
+        self._buton_uygula.config(state='normal', text=" Uygula ")
+ 
+    # ------------------------------------------------------------------
+    def _hata(self, mesaj):
+        messagebox.showerror("Hata", "Islem hatasi:\\n\\n" + mesaj)
+        self._durum("HATA: " + mesaj)
+        self._buton_uygula.config(state='normal', text=" Uygula ")
+ 
+    # ------------------------------------------------------------------
+    def _guncelle_imgbox(self, anahtar, arr):
+        box = self._kart_imgbox.get(anahtar)
+        if box is None:
+            return
+        photo = numpy_to_photoimage(arr, max_w=280, max_h=200)
+        box.config(image=photo, text='')
+        box.image = photo
+ 
+    # ------------------------------------------------------------------
+    def _kaydet(self):
+        if not self._sonuclar:
+            messagebox.showinfo("Bilgi", "Once 'Uygula'ya basin!")
+            return
+        os.makedirs('outputs', exist_ok=True)
+        for isim, arr in self._sonuclar.items():
+            cv2.imwrite("outputs/kisi2_{}.jpg".format(isim), arr)
+        messagebox.showinfo("Kaydedildi",
+                            "Goruntüler 'outputs/' klasorune kaydedildi.")
+        self._durum("Goruntüler 'outputs/' klasorune kaydedildi.")
+ 
+    # ------------------------------------------------------------------
+    def _durum(self, mesaj):
+        self._durum_var.set(mesaj)
+        self.update_idletasks()
+
+ 
+if __name__ == "__main__":
+    print("Bu dosya dogrudan calistirilmaz.")
+    print("Icerigini arayuz.py'ye entegre etmek icin README talimatlarini izleyin.")
+ 
 
 
 # ===========================================================================
