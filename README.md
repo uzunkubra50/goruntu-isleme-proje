@@ -2,6 +2,17 @@
 
 Bu proje, temel görüntü işleme operasyonlarının (gri dönüşüm, geometrik işlemler, filtreleme, kenar bulma ve morfoloji) NumPy kullanılarak sıfırdan manuel olarak implement edildiği kapsamlı bir uygulamadır.
 
+## 👥 Grup Üyeleri ve İş Bölümü
+
+| Kişi | Sorumluluk | Dosya |
+|------|-----------|-------|
+| **Kişi 1** | Gri Dönüşüm, Binary, Renk Uzayı (RGB→HSV), Histogram | `kisi1_temel_donusumler.py` |
+| **Kişi 2** | Döndürme, Kırpma, Ölçekleme, Aritmetik İşlemler | `kisi2_geometrik.py` |
+| **Kişi 3** | Parlaklık/Kontrast, Konvolüsyon, Gauss, Bulanıklaştırma | `kisi3_filtreleme.py` |
+| **Kişi 4** | Eşikleme (Global & Adaptif), Sobel Kenar, Gürültü | `kisi4_goruntu_isleme.py` |
+| **Kişi 5** | Morfolojik İşlemler, Ana İş Akışı, Entegrasyon, Arayüz | `kisi5_morfoloji.py` + `arayuz.py` |
+
+
 ## 🚀 Öne Çıkan Özellikler
 - **Tamamı Manuel:** Hazır kütüphane fonksiyonları (`cv2.blur`, `cv2.threshold` vb.) kullanılmadan yazılmış algoritmalar.
 - **Modern Arayüz:** Tkinter tabanlı, karanlık mod destekli ve dinamik yan menülü kullanıcı dostu tasarım.
