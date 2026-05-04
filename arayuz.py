@@ -15,9 +15,10 @@ import os
 import sys
 
 # --------------------------------------------------------------------------
-# TCL/TK YOL DUZELTME (Turk karakter iceren kullanici adi icin)
-# Anaconda'nin TCL/TK kutuphane yolunu otomatik bul ve ayarla.
-# Bu olmadan "Can't find a usable init.tcl" hatasi cikar.
+# TEKNİK NOT: TCL/TK YOL DÜZELTME
+# Windows'ta kullanıcı adı Türkçe karakter (ü, ş, ç vb.) içerdiğinde 
+# Tkinter kütüphaneleri bulunamayıp hata verebiliyor. 
+# Bu fonksiyon Anaconda içindeki doğru yolları bulup sisteme tanıtır.
 # --------------------------------------------------------------------------
 def _tcl_yolu_duzenle():
     import glob
@@ -592,6 +593,9 @@ class Kisi3Sekmesi(SekmeBaz):
         beta = self._beta_var.get()
         k = self._ksize_var.get()
 
+        # TEKNİK NOT: THREADING KULLANIMI
+        # Görüntü işleme döngüleri ağır olduğu için ana thread'i (arayüzü) dondurur.
+        # İşlemi arka planda (Thread) çalıştırarak arayüzün akıcı kalmasını sağlıyoruz.
         import threading
         def _run():
             try:
@@ -602,6 +606,7 @@ class Kisi3Sekmesi(SekmeBaz):
                 gblur = gaussian_blur(gri, kernel_boyutu=k, sigma=1.0)
                 
                 sonuclar = {'orijinal': bgr, 'pk': pk, 'gauss': gauss, 'mean': mean, 'gblur': gblur}
+                # after() metodu ile sonuçları arayüz thread'ine güvenli bir şekilde geri gönderiyoruz
                 self.after(0, lambda: self._bitti(sonuclar))
             except Exception as e:
                 self.after(0, lambda: messagebox.showerror("Hata", str(e)))
@@ -1142,11 +1147,10 @@ class AnaPencere(tk.Tk):
             return
 
         # ---------------------------------------------------------------
-        # TURKCE KARAKTER SORUNU COZUMU:
-        # cv2.imread() Windows'ta Turkce/Unicode karakter iceren dosya
-        # yollarini okuyamaz (ornek: "Kübra", "sağlam").
-        # Cozum: dosyayi once ham bayt olarak oku (np.fromfile),
-        # sonra bellekte cv2.imdecode ile coz. Yol stringi hic kullanilmaz.
+        # TEKNİK NOT: TÜRKÇE KARAKTER VE DOSYA YOLU ÇÖZÜMÜ
+        # cv2.imread doğrudan Türkçe karakterli yolları (örn: Kübra) okuyamaz.
+        # Çözüm: Dosyayı önce binary (ikili) olarak belleğe alıp 
+        # imdecode ile orada çözüyoruz. Böylece yol hatası yaşanmıyor.
         # ---------------------------------------------------------------
         try:
             ham_bayt = np.fromfile(yol, dtype=np.uint8)
