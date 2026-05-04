@@ -368,5 +368,12 @@ def demo(goruntu_yolu: str):
 
 
 if __name__ == "__main__":
-    # Kendi goruntu yolunuzu buraya yazin:
-    demo("C:\\Users\\ikra\\Downloads\\section-bg-gallery.png")
+    # Test için proje klasöründeki bir görseli kullanıyoruz
+    test_yolu = "images/test_photo.png"
+    
+    import os
+    if os.path.exists(test_yolu):
+        demo(test_yolu)
+    else:
+        print(f"Uyari: Test gorseli bulunamadi ({test_yolu}).")
+        print("Lutfen arayuz.py uzerinden calistirin veya gecerli bir yol verin.")
