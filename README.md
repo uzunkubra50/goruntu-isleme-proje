@@ -28,9 +28,14 @@ Bu proje, temel görüntü işleme operasyonlarının (gri dönüşüm, geometri
 
 ## 💻 Kurulum ve Çalıştırma
 
+### Hızlı Başlatma (Windows)
+Klasör içindeki **`baslat.bat`** dosyasına çift tıklamanız yeterlidir. Bu betik, gerekli kütüphaneleri (`requirements.txt`) otomatik olarak yükleyecek ve uygulamayı başlatacaktır.
+
+### Manuel Çalıştırma
+Eğer terminal üzerinden çalıştırmak isterseniz:
 1. Bağımlılıkları yükleyin:
    ```bash
-   pip install numpy opencv-python matplotlib pillow
+   pip install -r requirements.txt
    ```
 
 2. Uygulamayı başlatın:

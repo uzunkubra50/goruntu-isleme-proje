@@ -1,0 +1,9 @@
+@echo off
+echo Goruntu Isleme Projesi Baslatiliyor...
+echo.
+echo Gerekli kutuphaneler kontrol ediliyor/yukleniyor...
+pip install -r requirements.txt
+echo.
+echo Uygulama aciliyor, lutfen bekleyin...
+python arayuz.py
+pause

@@ -20,8 +20,7 @@ Aciklama:
         [XX] cv2.morphologyEx
         (ve diger tum hazir morfoloji fonksiyonlari)
 
-Yazar: Kisi 5
-Tarih: 2026
+
 """
 
 import os
